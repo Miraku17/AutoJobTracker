@@ -132,8 +132,14 @@ export async function scrapeOljSearch(searchUrl: string): Promise<ScrapedListIte
   }
 
   const $ = cheerio.load(html);
-  const seen = new Set<string>();
-  const items: ScrapedListItem[] = [];
+  const byUrl = new Map<string, ScrapedListItem>();
+
+  const isJunkText = (t: string) =>
+    !t ||
+    t.length < 4 ||
+    /^(see\s*more|view\s*(details|job)?|read\s*more|apply\s*(now)?|details|more|→|»|\.{2,})$/i.test(
+      t.trim()
+    );
 
   $('a[href*="/jobseekers/job/"]').each((_, el) => {
     const href = $(el).attr("href");
@@ -144,15 +150,24 @@ export async function scrapeOljSearch(searchUrl: string): Promise<ScrapedListIte
     } catch {
       return;
     }
-    if (seen.has(absUrl)) return;
-    seen.add(absUrl);
 
     const linkText = $(el).text().replace(/\s+/g, " ").trim();
-    if (!linkText) return;
-
     const container = $(el).closest(
       "article, .jobpost-cat-box, .latest-job-cat, .jobpost, li, .panel, .row, div"
     );
+
+    // Prefer a heading inside the container; fall back to the link text.
+    const headingText = container
+      .find("h1, h2, h3, h4, h5, h6")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const candidateTitle =
+      (!isJunkText(headingText) && headingText) ||
+      (!isJunkText(linkText) && linkText) ||
+      "";
 
     let company: string | null = null;
     let location: string | null = null;
@@ -164,20 +179,49 @@ export async function scrapeOljSearch(searchUrl: string): Promise<ScrapedListIte
       if (!company && /employer|company/.test(cls)) {
         company = t.replace(/^by\s+/i, "").trim() || null;
       }
-      if (!location && /(full[-\s]?time|part[-\s]?time|gig|freelance|remote|hours\/week)/i.test(t) && t.length < 80) {
+      if (
+        !location &&
+        /(full[-\s]?time|part[-\s]?time|gig|freelance|remote|hours\/week)/i.test(t) &&
+        t.length < 80
+      ) {
         location = t;
       }
     });
 
-    items.push({
+    const existing = byUrl.get(absUrl);
+    if (existing) {
+      // Upgrade title if we now have a better one
+      if (
+        candidateTitle &&
+        (!existing.title ||
+          isJunkText(existing.title) ||
+          candidateTitle.length > existing.title.length)
+      ) {
+        existing.title = candidateTitle.length > 300
+          ? candidateTitle.slice(0, 300)
+          : candidateTitle;
+      }
+      if (!existing.company && company) existing.company = company;
+      if (!existing.location && location) existing.location = location;
+      return;
+    }
+
+    byUrl.set(absUrl, {
       url: absUrl,
-      title: linkText.length > 300 ? linkText.slice(0, 300) : linkText,
+      title: candidateTitle
+        ? candidateTitle.length > 300
+          ? candidateTitle.slice(0, 300)
+          : candidateTitle
+        : null,
       company,
       location,
     });
   });
 
-  return items;
+  // Drop entries whose title is still junk
+  return Array.from(byUrl.values()).filter(
+    (it) => it.title && !isJunkText(it.title)
+  );
 }
 
 export function detectSource(url: string): string {
