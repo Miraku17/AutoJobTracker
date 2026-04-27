@@ -28,7 +28,7 @@ export default async function JobsPage() {
       <PageHeader
         marker="02"
         title="The job desk."
-        description="Every application from saved to offer — held on one continuous page. Filter, file, and follow up."
+        description="Every application from saved to applied — held on one continuous page. Filter, file, and follow up."
       />
       <JobsClient
         initialJobs={jobs.map((j) => ({ ...j, tags: safeJsonArray(j.tags) }))}

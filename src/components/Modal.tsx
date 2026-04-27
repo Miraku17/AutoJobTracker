@@ -48,18 +48,18 @@ export default function Modal({
         aria-hidden
         style={{
           background:
-            "radial-gradient(120% 80% at 50% 0%, rgba(22,20,14,0.42), rgba(22,20,14,0.28) 70%)",
+            "radial-gradient(120% 80% at 50% 0%, rgba(0,0,0,0.65), rgba(7,15,29,0.55) 70%)",
         }}
       />
       <div
         className={cn(
-          "relative w-full p-6 my-auto animate-rise rounded-sm border border-ink/20",
+          "relative w-full p-6 my-auto animate-rise rounded-sm border border-ink/25",
           w
         )}
         style={{
-          backgroundColor: "#fbf6e8",
+          backgroundColor: "#0f1f3a",
           boxShadow:
-            "0 1px 0 rgba(22,20,14,0.10), 0 30px 70px -16px rgba(22,20,14,0.55), 0 0 0 1px rgba(22,20,14,0.06)",
+            "0 1px 0 rgba(0,0,0,0.55), 0 30px 70px -16px rgba(0,0,0,0.85), 0 0 0 1px rgba(245,247,250,0.06)",
         }}
       >
         {/* corner marks */}

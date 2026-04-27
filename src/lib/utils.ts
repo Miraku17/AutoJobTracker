@@ -76,10 +76,6 @@ export function relativeTime(d: Date | string | null | undefined) {
 export const STATUSES = [
   { id: "saved", label: "Saved" },
   { id: "applied", label: "Applied" },
-  { id: "interview", label: "Interview" },
-  { id: "offer", label: "Offer" },
-  { id: "rejected", label: "Rejected" },
-  { id: "ghosted", label: "Ghosted" },
 ] as const;
 
 export type StatusId = (typeof STATUSES)[number]["id"];
@@ -92,14 +88,6 @@ export function statusColor(s: string) {
   switch (s) {
     case "applied":
       return "bg-status-applied/[0.08] text-status-applied border-status-applied/40";
-    case "interview":
-      return "bg-status-interview/[0.10] text-status-interview border-status-interview/50";
-    case "offer":
-      return "bg-status-offer/[0.10] text-status-offer border-status-offer/50";
-    case "rejected":
-      return "bg-status-rejected/[0.08] text-status-rejected border-status-rejected/40";
-    case "ghosted":
-      return "bg-status-ghosted/[0.10] text-status-ghosted border-status-ghosted/40";
     default:
       return "bg-paper-deep text-status-saved border-status-saved/40";
   }
@@ -108,16 +96,30 @@ export function statusColor(s: string) {
 export function statusDot(s: string) {
   switch (s) {
     case "applied":
-      return "#1f3a66";
-    case "interview":
-      return "#c4341a";
-    case "offer":
-      return "#1f4d3a";
-    case "rejected":
-      return "#7a3a2a";
-    case "ghosted":
-      return "#8a6a3a";
+      return "#5b9dff";
     default:
-      return "#3b3a32";
+      return "#9aa8c2";
+  }
+}
+
+export function employmentTypeColor(t: string | null | undefined): string {
+  if (!t) return "bg-paper-deep border-rule text-ink-muted";
+  switch (t.toLowerCase()) {
+    case "full-time":
+      return "bg-status-applied/[0.10] text-status-applied border-status-applied/50";
+    case "part-time":
+      return "bg-status-ghosted/[0.12] text-status-ghosted border-status-ghosted/50";
+    case "gig":
+      return "bg-status-offer/[0.12] text-status-offer border-status-offer/50";
+    case "freelance":
+      return "bg-status-interview/[0.12] text-status-interview border-status-interview/50";
+    case "contract":
+      return "bg-accent/[0.12] text-accent border-accent/50";
+    case "intern":
+      return "bg-status-saved/[0.15] text-status-saved border-status-saved/50";
+    case "temporary":
+      return "bg-status-rejected/[0.10] text-status-rejected border-status-rejected/50";
+    default:
+      return "bg-paper-deep border-rule text-ink-muted";
   }
 }

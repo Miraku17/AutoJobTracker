@@ -80,7 +80,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     await prisma.event.create({
       data: { userId: user.id, jobId: job.id, type: "status_changed", payload: JSON.stringify({ from: existing.status, to: statusChanged }) },
     });
-    if (["applied", "interview", "offer", "rejected"].includes(statusChanged)) {
+    if (statusChanged === "applied") {
       await prisma.event.create({
         data: { userId: user.id, jobId: job.id, type: statusChanged },
       });

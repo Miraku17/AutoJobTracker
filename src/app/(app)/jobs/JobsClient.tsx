@@ -4,22 +4,26 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Plus,
   Search,
-  LayoutGrid,
-  List,
   Bookmark,
   Trash2,
   Filter,
   X,
-  MoreHorizontal,
+  CheckSquare,
+  Square,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import StatusPill from "@/components/StatusPill";
 import Modal from "@/components/Modal";
 import JobForm, { type JobInput } from "@/components/JobForm";
-import ImportJob, { type ScrapedResult } from "@/components/ImportJob";
 import ScrapeSearch from "@/components/ScrapeSearch";
-import { STATUSES, formatDate, statusColor, statusDot, cn, safeJsonArray } from "@/lib/utils";
+import {
+  STATUSES,
+  cn,
+  safeJsonArray,
+  employmentTypeColor,
+} from "@/lib/utils";
 
 type Job = {
   id: string;
@@ -32,6 +36,7 @@ type Job = {
   description: string | null;
   salary: string | null;
   location: string | null;
+  employmentType: string | null;
   appliedAt: string | Date | null;
   followUpAt: string | Date | null;
   updatedAt: string | Date;
@@ -58,23 +63,67 @@ export default function JobsClient({
 
   const [jobs, setJobs] = useState<Job[]>(initialJobs);
   const [filters, setFilters] = useState<SavedFilter[]>(savedFilters);
-  const [view, setView] = useState<"kanban" | "list">("kanban");
   const [q, setQ] = useState(sp.get("q") || "");
   const [status, setStatus] = useState(sp.get("status") || "");
   const [tag, setTag] = useState(sp.get("tag") || "");
   const [newOpen, setNewOpen] = useState(sp.get("new") === "1");
   const [prefill, setPrefill] = useState<Partial<JobInput>>({});
   const [coverOpen, setCoverOpen] = useState<Job | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  function toggleSelect(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelected(new Set());
+    setBulkConfirm(false);
+  }
+  function selectAllVisible(visible: Job[]) {
+    setSelected((s) => {
+      const next = new Set(s);
+      const allSelected = visible.every((j) => next.has(j.id));
+      if (allSelected) {
+        for (const j of visible) next.delete(j.id);
+      } else {
+        for (const j of visible) next.add(j.id);
+      }
+      return next;
+    });
+  }
+  async function bulkDelete() {
+    if (selected.size === 0) return;
+    setBulkLoading(true);
+    const ids = Array.from(selected);
+    const previous = jobs;
+    setJobs((js) => js.filter((j) => !selected.has(j.id)));
+    try {
+      const res = await fetch("/api/jobs/delete-many", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      clearSelection();
+    } catch {
+      setJobs(previous);
+      alert("Could not delete the selected jobs.");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (sp.get("new") === "1") setNewOpen(true);
   }, [sp]);
-
-  const allTags = useMemo(() => {
-    const s = new Set<string>();
-    for (const j of jobs) for (const t of j.tags) s.add(t);
-    return Array.from(s).sort();
-  }, [jobs]);
 
   const filtered = useMemo(() => {
     const ql = q.trim().toLowerCase();
@@ -90,15 +139,17 @@ export default function JobsClient({
     });
   }, [jobs, q, status, tag]);
 
-  const grouped = useMemo(() => {
-    const g: Record<string, Job[]> = {};
-    for (const s of STATUSES) g[s.id] = [];
-    for (const j of filtered) {
-      if (!g[j.status]) g[j.status] = [];
-      g[j.status].push(j);
-    }
-    return g;
-  }, [filtered]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageJobs = useMemo(
+    () => filtered.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filtered, safePage, pageSize]
+  );
+
+  // Reset to page 1 when filters / search / page-size change
+  useEffect(() => {
+    setPage(1);
+  }, [q, status, tag, pageSize]);
 
   async function createJob(input: JobInput) {
     const res = await fetch("/api/jobs", {
@@ -118,18 +169,6 @@ export default function JobsClient({
     setJobs((js) => [data.job, ...js]);
     setNewOpen(false);
     setPrefill({});
-  }
-
-  function onScraped(s: ScrapedResult) {
-    setPrefill({
-      title: s.title ?? "",
-      company: s.company ?? "",
-      description: s.description ?? "",
-      location: s.location ?? "",
-      url: s.url,
-      tags: s.suggestedTags ?? [],
-    });
-    setNewOpen(true);
   }
 
   async function moveStatus(jobId: string, newStatus: string) {
@@ -214,42 +253,6 @@ export default function JobsClient({
               </option>
             ))}
           </select>
-          <select
-            className="input md:w-40"
-            value={tag}
-            onChange={(e) => setTag(e.target.value)}
-          >
-            <option value="">All tags</option>
-            {allTags.map((t) => (
-              <option key={t} value={t}>
-                #{t}
-              </option>
-            ))}
-          </select>
-
-          <div className="hidden md:flex items-center gap-0 rounded-sm border border-rule bg-paper-deep p-0.5">
-            <button
-              className={cn(
-                "btn-ghost !p-2 rounded-sm",
-                view === "kanban" && "bg-ink text-paper hover:bg-ink hover:text-paper"
-              )}
-              onClick={() => setView("kanban")}
-              title="Columns"
-            >
-              <LayoutGrid className="size-4" />
-            </button>
-            <button
-              className={cn(
-                "btn-ghost !p-2 rounded-sm",
-                view === "list" && "bg-ink text-paper hover:bg-ink hover:text-paper"
-              )}
-              onClick={() => setView("list")}
-              title="Index"
-            >
-              <List className="size-4" />
-            </button>
-          </div>
-
           <button
             className="btn-secondary"
             onClick={saveFilter}
@@ -258,10 +261,6 @@ export default function JobsClient({
           >
             <Bookmark className="size-4" />
             Save
-          </button>
-          <button className="btn-primary" onClick={() => setNewOpen(true)}>
-            <Plus className="size-4" />
-            New job
           </button>
         </div>
 
@@ -311,8 +310,7 @@ export default function JobsClient({
         )}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 animate-rise delay-1">
-        <ImportJob onScraped={onScraped} />
+      <div className="animate-rise delay-1">
         <ScrapeSearch
           onScraped={(newJobs) => {
             const normalized = (newJobs as Array<Record<string, unknown>>).map(
@@ -329,21 +327,78 @@ export default function JobsClient({
       </div>
 
       <div className="animate-rise delay-2">
-        {view === "kanban" ? (
-          <Kanban
-            grouped={grouped}
-            onMove={moveStatus}
-            onCover={(j) => setCoverOpen(j)}
-            onDelete={deleteJob}
-          />
-        ) : (
-          <ListView
-            jobs={filtered}
-            onDelete={deleteJob}
-            onCover={(j) => setCoverOpen(j)}
+        <ListView
+          jobs={pageJobs}
+          selected={selected}
+          onToggle={toggleSelect}
+          onToggleAll={() => selectAllVisible(pageJobs)}
+        />
+        {filtered.length > 0 && (
+          <Pagination
+            page={safePage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
           />
         )}
       </div>
+
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-rise">
+          <div
+            className="sheet flex items-center gap-3 pl-4 pr-2 py-2"
+            style={{
+              boxShadow:
+                "0 1px 0 rgba(22,20,14,0.10), 0 18px 36px -10px rgba(22,20,14,0.45)",
+            }}
+          >
+            <span className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
+              <span className="text-accent num">
+                {String(selected.size).padStart(2, "0")}
+              </span>{" "}
+              selected
+            </span>
+            <span className="hairline-strong w-px h-5 self-center" style={{ borderTop: 0, borderLeft: "1px solid rgba(22,20,14,0.18)" }} />
+            <button className="btn-ghost !py-1" onClick={clearSelection}>
+              Cancel
+            </button>
+            {!bulkConfirm ? (
+              <button
+                className="btn-danger !py-1.5"
+                onClick={() => setBulkConfirm(true)}
+              >
+                <Trash2 className="size-3.5" />
+                Delete
+              </button>
+            ) : (
+              <>
+                <span className="font-mono text-[10px] uppercase tracking-eyebrow text-status-rejected">
+                  Delete {selected.size}?
+                </span>
+                <button
+                  className="btn-danger !py-1.5"
+                  onClick={bulkDelete}
+                  disabled={bulkLoading}
+                >
+                  {bulkLoading ? (
+                    <>
+                      <Loader2 className="size-3.5 animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="size-3.5" />
+                      Confirm
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <Modal
         open={newOpen}
@@ -378,6 +433,115 @@ export default function JobsClient({
   );
 }
 
+function Pagination({
+  page,
+  totalPages,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  totalItems: number;
+  onPageChange: (p: number) => void;
+  onPageSizeChange: (s: number) => void;
+}) {
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalItems);
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+
+  // Build a windowed page list: 1 … (page-1) page (page+1) … totalPages
+  const pages: (number | "…")[] = [];
+  const window = 1;
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= page - window && i <= page + window)
+    ) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== "…") {
+      pages.push("…");
+    }
+  }
+
+  return (
+    <div className="mt-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
+        Showing{" "}
+        <span className="text-ink num">
+          {String(start).padStart(2, "0")}–{String(end).padStart(2, "0")}
+        </span>{" "}
+        of <span className="text-ink num">{String(totalItems).padStart(2, "0")}</span>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
+          <span className="hidden md:inline">Per page</span>
+          <select
+            className="input !w-auto !py-1 !text-xs"
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(parseInt(e.target.value, 10))}
+          >
+            {[10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            className="btn-ghost !p-1.5"
+            onClick={() => onPageChange(page - 1)}
+            disabled={!canPrev}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+
+          {pages.map((p, i) =>
+            p === "…" ? (
+              <span
+                key={`gap-${i}`}
+                className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-subtle px-1"
+              >
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => onPageChange(p)}
+                className={cn(
+                  "font-mono text-[11px] num min-w-[28px] h-7 rounded-sm border transition-colors",
+                  p === page
+                    ? "bg-ink text-paper border-ink"
+                    : "border-rule text-ink-muted hover:border-ink hover:text-ink"
+                )}
+              >
+                {p}
+              </button>
+            )
+          )}
+
+          <button
+            className="btn-ghost !p-1.5"
+            onClick={() => onPageChange(page + 1)}
+            disabled={!canNext}
+            aria-label="Next page"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FilterChip({
   children,
   onClear,
@@ -395,164 +559,16 @@ function FilterChip({
   );
 }
 
-function Kanban({
-  grouped,
-  onMove,
-  onCover,
-  onDelete,
-}: {
-  grouped: Record<string, Job[]>;
-  onMove: (id: string, status: string) => void;
-  onCover: (j: Job) => void;
-  onDelete: (id: string) => void;
-}) {
-  return (
-    <div className="grid md:grid-cols-3 lg:grid-cols-6 gap-3">
-      {STATUSES.map((s, i) => {
-        const list = grouped[s.id] ?? [];
-        return (
-          <div
-            key={s.id}
-            className="bg-paper-deep/60 border border-ink/10 rounded-sm p-3 min-h-[180px]"
-          >
-            <div className="flex items-center justify-between mb-3 hairline pb-2 border-t-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ background: statusDot(s.id) }}
-                />
-                <span className="font-mono text-[10px] uppercase tracking-eyebrow text-ink truncate">
-                  {String.fromCharCode(65 + i)} · {s.label}
-                </span>
-              </div>
-              <span className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-subtle num">
-                {String(list.length).padStart(2, "0")}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {list.map((j) => (
-                <KanbanCard
-                  key={j.id}
-                  job={j}
-                  onMove={onMove}
-                  onCover={onCover}
-                  onDelete={onDelete}
-                />
-              ))}
-              {list.length === 0 && (
-                <div className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-subtle text-center py-8 border border-dashed border-ink/15 rounded-sm">
-                  Empty
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function KanbanCard({
-  job,
-  onMove,
-  onCover,
-  onDelete,
-}: {
-  job: Job;
-  onMove: (id: string, status: string) => void;
-  onCover: (j: Job) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="group relative bg-paper-card border border-ink/15 rounded-sm p-3 hover:border-ink hover:-translate-y-px transition-all duration-150 shadow-soft">
-      <Link href={`/jobs/${job.id}`} className="block">
-        <div className="text-[13px] font-medium leading-snug tracking-tightish text-ink line-clamp-2">
-          {job.title}
-        </div>
-        <div className="mt-1 font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted truncate">
-          {job.company}
-        </div>
-        {job.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {job.tags.slice(0, 3).map((t) => (
-              <span
-                key={t}
-                className="pill bg-accent/10 text-accent border-accent/30"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="mt-3 hairline pt-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-eyebrow text-ink-subtle">
-          <span>{formatDate(job.appliedAt ?? job.updatedAt)}</span>
-          {job.followUpAt && (
-            <span className="text-accent">↻ {formatDate(job.followUpAt)}</span>
-          )}
-        </div>
-      </Link>
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          className="btn-ghost !p-1"
-          onClick={() => setOpen((o) => !o)}
-          title="Move"
-        >
-          <MoreHorizontal className="size-3.5" />
-        </button>
-      </div>
-      {open && (
-        <div className="absolute top-9 right-2 z-10 sheet p-1 min-w-[160px]">
-          <button
-            onClick={() => {
-              setOpen(false);
-              onCover(job);
-            }}
-            className="w-full text-left px-2 py-1.5 text-xs hover:bg-paper-deep rounded-sm"
-          >
-            Generate cover letter
-          </button>
-          <div className="hairline my-1" />
-          {STATUSES.filter((s) => s.id !== job.status).map((s) => (
-            <button
-              key={s.id}
-              className="w-full text-left px-2 py-1.5 text-xs hover:bg-paper-deep rounded-sm flex items-center gap-2"
-              onClick={() => {
-                setOpen(false);
-                onMove(job.id, s.id);
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: statusDot(s.id) }}
-              />
-              Move to {s.label}
-            </button>
-          ))}
-          <div className="hairline my-1" />
-          <button
-            className="w-full text-left px-2 py-1.5 text-xs text-status-rejected hover:bg-status-rejected/10 rounded-sm"
-            onClick={() => {
-              setOpen(false);
-              onDelete(job.id);
-            }}
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ListView({
   jobs,
-  onDelete,
-  onCover,
+  selected,
+  onToggle,
+  onToggleAll,
 }: {
   jobs: Job[];
-  onDelete: (id: string) => void;
-  onCover: (j: Job) => void;
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
 }) {
   if (jobs.length === 0) {
     return (
@@ -562,55 +578,94 @@ function ListView({
       </div>
     );
   }
+  const allSelected =
+    jobs.length > 0 && jobs.every((j) => selected.has(j.id));
+  const someSelected =
+    !allSelected && jobs.some((j) => selected.has(j.id));
   return (
     <div className="sheet overflow-hidden">
+      {/* Header row with select-all */}
+      <div className="grid grid-cols-12 gap-3 items-center px-5 py-3 border-b border-ink/15 bg-paper-deep/40 font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
+        <div className="col-span-1 flex items-center">
+          <button
+            type="button"
+            onClick={onToggleAll}
+            aria-label={allSelected ? "Deselect all" : "Select all"}
+            className={cn(
+              "grid place-items-center w-4 h-4 rounded-sm border transition-colors",
+              allSelected
+                ? "bg-accent border-accent text-paper"
+                : someSelected
+                ? "bg-accent/20 border-accent text-accent"
+                : "bg-paper border-ink/30 hover:border-ink"
+            )}
+          >
+            {allSelected ? (
+              <CheckSquare className="size-3" strokeWidth={3} />
+            ) : someSelected ? (
+              <Square className="size-3" strokeWidth={3} />
+            ) : null}
+          </button>
+        </div>
+        <div className="col-span-11">Title · Description</div>
+      </div>
       <ul className="divide-y divide-ink/10">
-        {jobs.map((j, i) => (
+        {jobs.map((j) => (
           <li
             key={j.id}
-            className="grid grid-cols-12 gap-3 items-center px-5 py-4 hover:bg-paper-deep/50 transition-colors group"
+            className={cn(
+              "grid grid-cols-12 gap-3 items-start px-5 py-4 transition-colors group",
+              selected.has(j.id)
+                ? "bg-accent/[0.06]"
+                : "hover:bg-paper-deep/50"
+            )}
           >
-            <div className="hidden md:block col-span-1 font-mono text-[10px] uppercase tracking-eyebrow text-ink-subtle num">
-              {String(i + 1).padStart(2, "0")}
+            <div className="col-span-1 flex items-start pt-0.5">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggle(j.id);
+                }}
+                aria-label={selected.has(j.id) ? "Deselect" : "Select"}
+                className={cn(
+                  "grid place-items-center w-4 h-4 rounded-sm border transition-colors shrink-0",
+                  selected.has(j.id)
+                    ? "bg-accent border-accent text-paper"
+                    : "bg-paper border-ink/30 opacity-0 group-hover:opacity-100 hover:border-ink"
+                )}
+              >
+                {selected.has(j.id) && (
+                  <CheckSquare className="size-3" strokeWidth={3} />
+                )}
+              </button>
             </div>
             <Link
               href={`/jobs/${j.id}`}
-              className="col-span-12 md:col-span-5 min-w-0 block"
+              className="col-span-11 min-w-0 block"
             >
-              <div className="text-[15px] font-medium tracking-tightish truncate group-hover:text-accent transition-colors">
-                {j.title}
-              </div>
-              <div className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted truncate mt-0.5">
-                {j.company}
-                {j.tags.length > 0 && (
-                  <span className="ml-3 text-ink-subtle">
-                    {j.tags.slice(0, 4).map((t) => `· ${t}`).join(" ")}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <div className="text-[15px] font-medium tracking-tightish group-hover:text-accent transition-colors">
+                  {j.title}
+                </div>
+                {j.employmentType && (
+                  <span
+                    className={cn(
+                      "pill shrink-0",
+                      employmentTypeColor(j.employmentType)
+                    )}
+                  >
+                    {j.employmentType}
                   </span>
                 )}
               </div>
+              {j.description && (
+                <div className="mt-1.5 text-[13px] leading-relaxed text-ink-muted line-clamp-2 text-pretty">
+                  {j.description}
+                </div>
+              )}
             </Link>
-            <div className="col-span-6 md:col-span-2">
-              <StatusPill status={j.status} />
-            </div>
-            <div className="col-span-6 md:col-span-2 font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
-              {formatDate(j.appliedAt ?? j.updatedAt)}
-            </div>
-            <div className="col-span-12 md:col-span-2 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                className="btn-ghost !p-1.5"
-                onClick={() => onCover(j)}
-                title="Cover letter"
-              >
-                ✉
-              </button>
-              <button
-                className="btn-ghost !p-1.5 text-status-rejected"
-                onClick={() => onDelete(j.id)}
-                title="Delete"
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
           </li>
         ))}
       </ul>

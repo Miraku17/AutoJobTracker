@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, relativeTime, safeJsonArray } from "@/lib/utils";
 import StatusPill from "@/components/StatusPill";
 import WeeklyChart from "@/components/WeeklyChart";
+import ClearSavedButton from "@/components/ClearSavedButton";
 
 export const dynamic = "force-dynamic";
 
@@ -39,10 +40,6 @@ async function loadData() {
     total: allJobs.length,
     saved: 0,
     applied: 0,
-    interview: 0,
-    offer: 0,
-    rejected: 0,
-    ghosted: 0,
   } as Record<string, number>;
   for (const j of allJobs) counts[j.status] = (counts[j.status] ?? 0) + 1;
 
@@ -98,10 +95,9 @@ export default async function DashboardPage() {
               {user.name?.split(" ")[0] || user.email.split("@")[0]}.
             </span>
           </h1>
-          <Link href="/jobs?new=1" className="btn-primary">
-            <Plus className="size-4" />
-            Log new entry
-          </Link>
+          <div className="flex items-center gap-2">
+            <ClearSavedButton count={counts.saved} />
+          </div>
         </div>
         <p className="mt-5 text-[15px] text-ink-muted max-w-xl text-pretty">
           A snapshot of the field today — applications in motion, follow-ups due, and the
@@ -111,12 +107,10 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stat strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-0 border border-ink/15 rounded-sm overflow-hidden bg-paper-card animate-rise delay-1">
+      <div className="grid grid-cols-3 gap-0 border border-ink/15 rounded-sm overflow-hidden bg-paper-card animate-rise delay-1">
         <Stat label="Total" value={counts.total} />
+        <Stat label="Saved" value={counts.saved} />
         <Stat label="Applied" value={counts.applied} accent="applied" />
-        <Stat label="Interview" value={counts.interview} accent="interview" />
-        <Stat label="Offer" value={counts.offer} accent="offer" />
-        <Stat label="Rejected" value={counts.rejected} accent="rejected" />
       </div>
 
       {/* Activity + reminders */}
@@ -256,18 +250,9 @@ function Stat({
 }: {
   label: string;
   value: number;
-  accent?: "applied" | "interview" | "offer" | "rejected";
+  accent?: "applied";
 }) {
-  const accentColor =
-    accent === "applied"
-      ? "#1f3a66"
-      : accent === "interview"
-      ? "#c4341a"
-      : accent === "offer"
-      ? "#1f4d3a"
-      : accent === "rejected"
-      ? "#7a3a2a"
-      : undefined;
+  const accentColor = accent === "applied" ? "#5b9dff" : undefined;
   return (
     <div className="px-5 py-5 border-r border-ink/10 last:border-r-0 relative overflow-hidden group">
       <div className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">

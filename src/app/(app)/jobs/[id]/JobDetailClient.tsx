@@ -3,7 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Bell, Trash2, Pencil, ArrowLeft, ExternalLink, MapPin, Banknote, Calendar } from "lucide-react";
+import {
+  Bell,
+  Trash2,
+  Pencil,
+  ArrowLeft,
+  ExternalLink,
+  MapPin,
+  Banknote,
+  Briefcase,
+  Calendar,
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  RefreshCw,
+} from "lucide-react";
 import StatusPill from "@/components/StatusPill";
 import JobForm, { type JobInput } from "@/components/JobForm";
 import { STATUSES, formatDate, relativeTime, statusDot } from "@/lib/utils";
@@ -17,6 +32,7 @@ type Job = {
   notes: string | null;
   salary: string | null;
   location: string | null;
+  employmentType: string | null;
   status: string;
   tags: string[];
   appliedAt: string | Date | null;
@@ -47,6 +63,39 @@ export default function JobDetailClient({
   const [reminders, setReminders] = useState<Reminder[]>(initialReminders);
   const [newReminderTitle, setNewReminderTitle] = useState("Follow up");
   const [newReminderAt, setNewReminderAt] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function generateDraft() {
+    setDrafting(true);
+    setDraftError(null);
+    try {
+      const res = await fetch("/api/cover-letter", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jobId: job.id, useAI: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDraftError(data.error || "Failed to generate");
+        return;
+      }
+      setDraft(data.body || "");
+    } catch {
+      setDraftError("Network error");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  async function copyDraft() {
+    if (!draft) return;
+    await navigator.clipboard.writeText(draft);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
 
   async function save(input: JobInput) {
     const res = await fetch(`/api/jobs/${job.id}`, {
@@ -184,11 +233,11 @@ export default function JobDetailClient({
 
       {/* Dossier header */}
       <header className="mb-8">
-        <div className="flex items-center gap-3 mb-3 font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted">
-          <span className="text-accent">Entry № {job.id.slice(0, 6).toUpperCase()}</span>
-          <span>·</span>
-          <span>{job.company}</span>
-        </div>
+        {job.company && job.company !== "—" && (
+          <div className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted mb-3">
+            {job.company}
+          </div>
+        )}
         <h1 className="display text-5xl md:text-6xl text-balance leading-[0.95]">
           {job.title}
         </h1>
@@ -220,6 +269,100 @@ export default function JobDetailClient({
         <div className="hairline mt-1" />
       </header>
 
+      {/* AI draft section */}
+      <section className="mb-8">
+        {!draft && !drafting ? (
+          <div className="sheet p-5 flex items-center gap-4 relative overflow-hidden">
+            <div
+              aria-hidden
+              className="absolute -right-8 -top-8 size-32 rounded-full bg-accent/15 blur-2xl"
+            />
+            <div className="grid place-items-center w-12 h-12 rounded-sm border border-accent bg-accent text-paper-deep shrink-0 shadow-ink">
+              <Sparkles className="size-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="eyebrow-accent">AI assist</div>
+              <div className="display text-xl mt-0.5">
+                Draft an application message
+              </div>
+              <p className="font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted mt-1">
+                Claude reads the role + description and writes a tailored
+                opener
+              </p>
+            </div>
+            <button
+              className="btn-primary shrink-0"
+              onClick={generateDraft}
+              disabled={drafting}
+            >
+              <Sparkles className="size-4" />
+              Draft with AI
+            </button>
+          </div>
+        ) : (
+          <div className="sheet p-6 relative">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="eyebrow-accent">AI draft</div>
+                <h3 className="display text-2xl mt-0.5">
+                  Application message
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  className="btn-secondary"
+                  onClick={generateDraft}
+                  disabled={drafting}
+                  title="Regenerate"
+                >
+                  {drafting ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="size-3.5" />
+                  )}
+                  Regenerate
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={copyDraft}
+                  disabled={!draft || drafting}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="size-4" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-4" />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="hairline pt-4">
+              {drafting && !draft ? (
+                <div className="flex items-center gap-3 text-ink-muted py-8">
+                  <Loader2 className="size-4 animate-spin text-accent" />
+                  <span className="font-mono text-[10px] uppercase tracking-eyebrow">
+                    AI is drafting…
+                  </span>
+                </div>
+              ) : draftError ? (
+                <div className="font-mono text-[10px] uppercase tracking-eyebrow text-status-rejected py-2">
+                  {draftError}
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink font-sans text-pretty">
+                  {draft}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Field index */}
@@ -246,6 +389,11 @@ export default function JobDetailClient({
                 label="Location"
                 value={job.location || "—"}
               />
+              <Field
+                icon={<Briefcase className="size-3.5" />}
+                label="Type"
+                value={job.employmentType || "—"}
+              />
             </div>
             {job.tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-1.5">
@@ -264,10 +412,24 @@ export default function JobDetailClient({
           {job.description && (
             <section>
               <SectionHead marker="02" title="Description" />
-              <div className="sheet p-6">
-                <p className="text-[15px] text-ink-muted whitespace-pre-wrap leading-relaxed text-pretty dropcap">
-                  {job.description}
-                </p>
+              <div className="sheet p-6 space-y-4">
+                {formatDescription(job.description).map((para, i) =>
+                  isHeading(para) ? (
+                    <h3
+                      key={i}
+                      className="font-mono text-[11px] uppercase tracking-eyebrow text-accent pt-2"
+                    >
+                      {para}
+                    </h3>
+                  ) : (
+                    <p
+                      key={i}
+                      className="text-[15px] text-ink leading-relaxed text-pretty whitespace-pre-wrap"
+                    >
+                      {para}
+                    </p>
+                  )
+                )}
               </div>
             </section>
           )}
@@ -429,4 +591,67 @@ function Field({
       </div>
     </div>
   );
+}
+
+const SECTION_HEADERS = [
+  "Key Responsibilities",
+  "Responsibilities",
+  "Requirements",
+  "Qualifications",
+  "Required Skills",
+  "Preferred Skills",
+  "Nice to Have",
+  "Nice-to-Have",
+  "What We Offer",
+  "What You'll Do",
+  "What You Will Do",
+  "Ideal Candidate",
+  "About Us",
+  "About the Role",
+  "About the Company",
+  "About You",
+  "Benefits",
+  "Compensation",
+  "Schedule",
+  "Job Type",
+  "Job Title",
+  "Location",
+  "Salary",
+  "How to Apply",
+  "Apply Here",
+  "PLEASE READ ON HOW TO APPLY",
+];
+
+function isHeading(s: string) {
+  const t = s.trim();
+  return SECTION_HEADERS.some(
+    (h) => t === h || t.toLowerCase() === h.toLowerCase()
+  );
+}
+
+function formatDescription(text: string): string[] {
+  if (!text) return [];
+
+  // Insert a break before each known section header
+  let s = text;
+  for (const h of SECTION_HEADERS) {
+    s = s.replace(
+      new RegExp(`(^|[^\\n])\\s+(${escapeRegex(h)})\\b`, "gi"),
+      "$1\n\n$2\n"
+    );
+  }
+
+  // Bullet-ish runs: split where a line starts with • or -
+  s = s.replace(/\s+([•·\-])\s+/g, "\n$1 ");
+
+  // Collapse 3+ newlines, then split on blank lines
+  return s
+    .replace(/\n{3,}/g, "\n\n")
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

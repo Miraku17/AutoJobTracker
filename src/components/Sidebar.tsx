@@ -9,7 +9,6 @@ import {
   FileText,
   Settings,
   LogOut,
-  Plus,
   Menu,
   X,
 } from "lucide-react";
@@ -76,18 +75,6 @@ export default function Sidebar({
               <span>OLJ · Automate</span>
               <span>Est. {new Date().getFullYear()}</span>
             </div>
-          </Link>
-
-          {/* New entry CTA */}
-          <Link
-            href="/jobs?new=1"
-            className="mt-6 group flex items-center gap-3 border border-ink bg-ink text-paper px-3 py-2.5 rounded-sm hover:bg-accent transition-colors"
-            onClick={() => setOpen(false)}
-            style={{ boxShadow: "0 1px 0 rgba(22,20,14,0.5), inset 0 1px 0 rgba(255,255,255,0.05)" }}
-          >
-            <Plus className="size-4" />
-            <span className="text-sm font-medium tracking-tightish">Log new entry</span>
-            <span className="ml-auto kbd !bg-paper/10 !text-paper/80 !border-paper/30">N</span>
           </Link>
 
           {/* Folio nav */}

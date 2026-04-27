@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    const tagsArr = autoTags(item.title);
+    const tagsArr = autoTags(`${item.title} ${item.description ?? ""}`);
 
     const job = await prisma.job.create({
       data: {
@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
         url: item.url,
         urlHash: h,
         location: item.location,
+        employmentType: item.employmentType,
+        description: item.description,
         source: detectSource(item.url),
         status: "saved",
         tags: JSON.stringify(tagsArr),

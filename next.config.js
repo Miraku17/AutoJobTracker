@@ -3,8 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
+      bodySizeLimit: "10mb",
     },
+    serverComponentsExternalPackages: ["unpdf"],
   },
 };
 

@@ -10,18 +10,22 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  email           String         @unique
+  passwordHash    String
+  name            String?
+  resume          String?        // extracted text content of the user's resume
+  resumeFilename  String?        // original filename, for display
+  resumeUpdatedAt DateTime?
+  freelanceProjects String?      // free-form notes the AI cites in every cover letter
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  jobs         Job[]
-  templates    Template[]
-  reminders    Reminder[]
+  jobs          Job[]
+  templates     Template[]
+  reminders     Reminder[]
   searchFilters SearchFilter[]
-  events       Event[]
+  events        Event[]
 }
 
 model Job {
@@ -29,14 +33,15 @@ model Job {
   userId        String
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title         String
-  company       String
-  url           String?
-  description   String?
-  notes         String?
-  salary        String?
-  location      String?
-  source        String?    // e.g. "OnlineJobs.ph"
+  title          String
+  company        String
+  url            String?
+  description    String?
+  notes          String?
+  salary         String?
+  location       String?
+  employmentType String?    // Full-time / Part-time / Gig / Freelance / Contract
+  source         String?    // e.g. "OnlineJobs.ph"
   status        String     @default("saved") // saved | applied | interview | offer | rejected | ghosted
   tags          String     @default("[]")    // JSON array of strings
   appliedAt     DateTime?

@@ -32,12 +32,19 @@ export async function POST(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     });
   }
-  if (!template) return jsonError("No template available — create one first", 404);
+  if (!template && !useAI) {
+    return jsonError("No template available — create one first", 404);
+  }
 
   let job = null;
   if (jobId) {
     job = await prisma.job.findFirst({ where: { id: jobId, userId: user.id } });
   }
+
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { resume: true, freelanceProjects: true },
+  });
 
   const ctx = {
     job_title: variables.job_title || job?.title || "",
@@ -45,19 +52,21 @@ export async function POST(req: NextRequest) {
     skills: variables.skills || "",
     name: variables.name || user.name || user.email.split("@")[0],
     description: variables.description || job?.description || "",
+    resume: fullUser?.resume || "",
+    freelance_projects: fullUser?.freelanceProjects || "",
     ...variables,
   };
 
-  let body_text = renderTemplate(template.body, ctx);
-  const subject = template.subject ? renderTemplate(template.subject, ctx) : null;
+  let body_text = template ? renderTemplate(template.body, ctx) : "";
+  const subject = template?.subject ? renderTemplate(template.subject, ctx) : null;
 
   if (useAI) {
-    body_text = await generateAICoverLetter(ctx, body_text);
+    body_text = await generateAICoverLetter(ctx, body_text || undefined);
   }
 
   return jsonOk({
     subject,
     body: body_text,
-    template: { id: template.id, name: template.name },
+    template: template ? { id: template.id, name: template.name } : null,
   });
 }

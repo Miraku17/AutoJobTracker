@@ -29,10 +29,6 @@ export async function GET() {
     total: jobs.length,
     saved: 0,
     applied: 0,
-    interview: 0,
-    offer: 0,
-    rejected: 0,
-    ghosted: 0,
   } as Record<string, number>;
   for (const j of jobs) {
     counts[j.status] = (counts[j.status] ?? 0) + 1;
@@ -65,17 +61,10 @@ export async function GET() {
     if (e.type === "job_created") weeks[i].created += 1;
   }
 
-  // Conversion funnel
-  const appliedTotal = jobs.filter((j) =>
-    ["applied", "interview", "offer", "rejected", "ghosted"].includes(j.status)
-  ).length;
-  const interviewTotal = jobs.filter((j) =>
-    ["interview", "offer"].includes(j.status)
-  ).length;
-  const offerTotal = jobs.filter((j) => j.status === "offer").length;
-
-  const responseRate =
-    appliedTotal > 0 ? Math.round((interviewTotal / appliedTotal) * 100) : 0;
+  const appliedTotal = jobs.filter((j) => j.status === "applied").length;
+  const savedTotal = jobs.filter((j) => j.status === "saved").length;
+  const applyRate =
+    jobs.length > 0 ? Math.round((appliedTotal / jobs.length) * 100) : 0;
 
   // Tag breakdown
   const tagCounts: Record<string, number> = {};
@@ -92,12 +81,8 @@ export async function GET() {
   return jsonOk({
     counts,
     weekly: weeks,
-    funnel: {
-      applied: appliedTotal,
-      interview: interviewTotal,
-      offer: offerTotal,
-    },
-    responseRate,
+    funnel: { saved: savedTotal, applied: appliedTotal },
+    applyRate,
     tagBreakdown,
   });
 }

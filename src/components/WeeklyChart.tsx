@@ -27,25 +27,25 @@ export default function WeeklyChart({ data }: { data: Week[] }) {
         <AreaChart data={fmt} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
           <defs>
             <linearGradient id="g-applied" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c4341a" stopOpacity={0.32} />
-              <stop offset="100%" stopColor="#c4341a" stopOpacity={0} />
+              <stop offset="0%" stopColor="#5b9dff" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="#5b9dff" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="g-created" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1f3a66" stopOpacity={0.18} />
-              <stop offset="100%" stopColor="#1f3a66" stopOpacity={0} />
+              <stop offset="0%" stopColor="#9aa8c2" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="#9aa8c2" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="rgba(22,20,14,0.10)" vertical={false} />
+          <CartesianGrid stroke="rgba(245,247,250,0.10)" vertical={false} />
           <XAxis
             dataKey="label"
-            stroke="#8a8270"
+            stroke="#6b7a96"
             fontSize={10}
             tickLine={false}
             axisLine={false}
             style={{ fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}
           />
           <YAxis
-            stroke="#8a8270"
+            stroke="#6b7a96"
             fontSize={10}
             tickLine={false}
             axisLine={false}
@@ -54,18 +54,18 @@ export default function WeeklyChart({ data }: { data: Week[] }) {
             style={{ fontFamily: "var(--font-mono)" }}
           />
           <Tooltip
-            cursor={{ stroke: "rgba(22,20,14,0.4)", strokeDasharray: "2 4" }}
+            cursor={{ stroke: "rgba(245,247,250,0.35)", strokeDasharray: "2 4" }}
             contentStyle={{
-              background: "#fbf6e8",
-              border: "1px solid #16140e",
+              background: "#0f1f3a",
+              border: "1px solid rgba(245,247,250,0.35)",
               borderRadius: 2,
               fontSize: 11,
               fontFamily: "var(--font-mono)",
-              color: "#16140e",
-              boxShadow: "0 8px 24px -12px rgba(22,20,14,0.4)",
+              color: "#f5f7fa",
+              boxShadow: "0 8px 24px -12px rgba(0,0,0,0.6)",
             }}
             labelStyle={{
-              color: "#16140e",
+              color: "#f5f7fa",
               textTransform: "uppercase",
               letterSpacing: "0.14em",
               fontSize: 10,
@@ -75,7 +75,7 @@ export default function WeeklyChart({ data }: { data: Week[] }) {
             type="monotone"
             dataKey="created"
             name="Saved"
-            stroke="#1f3a66"
+            stroke="#9aa8c2"
             strokeWidth={1.5}
             fill="url(#g-created)"
           />
@@ -83,7 +83,7 @@ export default function WeeklyChart({ data }: { data: Week[] }) {
             type="monotone"
             dataKey="applied"
             name="Applied"
-            stroke="#c4341a"
+            stroke="#5b9dff"
             strokeWidth={2}
             fill="url(#g-applied)"
           />
