@@ -103,6 +103,83 @@ export async function scrapeJob(url: string): Promise<ScrapedJob> {
   };
 }
 
+export type ScrapedListItem = {
+  url: string;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+};
+
+export async function scrapeOljSearch(searchUrl: string): Promise<ScrapedListItem[]> {
+  let html: string;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    const res = await fetch(searchUrl, {
+      signal: ctrl.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    });
+    clearTimeout(t);
+    if (!res.ok) return [];
+    html = await res.text();
+  } catch {
+    return [];
+  }
+
+  const $ = cheerio.load(html);
+  const seen = new Set<string>();
+  const items: ScrapedListItem[] = [];
+
+  $('a[href*="/jobseekers/job/"]').each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href) return;
+    let absUrl: string;
+    try {
+      absUrl = new URL(href, searchUrl).toString().split("?")[0].split("#")[0];
+    } catch {
+      return;
+    }
+    if (seen.has(absUrl)) return;
+    seen.add(absUrl);
+
+    const linkText = $(el).text().replace(/\s+/g, " ").trim();
+    if (!linkText) return;
+
+    const container = $(el).closest(
+      "article, .jobpost-cat-box, .latest-job-cat, .jobpost, li, .panel, .row, div"
+    );
+
+    let company: string | null = null;
+    let location: string | null = null;
+
+    container.find("*").each((_, child) => {
+      const t = $(child).text().replace(/\s+/g, " ").trim();
+      if (!t || t.length > 200) return;
+      const cls = ($(child).attr("class") || "").toLowerCase();
+      if (!company && /employer|company/.test(cls)) {
+        company = t.replace(/^by\s+/i, "").trim() || null;
+      }
+      if (!location && /(full[-\s]?time|part[-\s]?time|gig|freelance|remote|hours\/week)/i.test(t) && t.length < 80) {
+        location = t;
+      }
+    });
+
+    items.push({
+      url: absUrl,
+      title: linkText.length > 300 ? linkText.slice(0, 300) : linkText,
+      company,
+      location,
+    });
+  });
+
+  return items;
+}
+
 export function detectSource(url: string): string {
   try {
     const u = new URL(url);

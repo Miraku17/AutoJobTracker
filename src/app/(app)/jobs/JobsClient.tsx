@@ -18,7 +18,8 @@ import StatusPill from "@/components/StatusPill";
 import Modal from "@/components/Modal";
 import JobForm, { type JobInput } from "@/components/JobForm";
 import ImportJob, { type ScrapedResult } from "@/components/ImportJob";
-import { STATUSES, formatDate, statusColor, statusDot, cn } from "@/lib/utils";
+import ScrapeSearch from "@/components/ScrapeSearch";
+import { STATUSES, formatDate, statusColor, statusDot, cn, safeJsonArray } from "@/lib/utils";
 
 type Job = {
   id: string;
@@ -310,8 +311,21 @@ export default function JobsClient({
         )}
       </div>
 
-      <div className="animate-rise delay-1">
+      <div className="grid lg:grid-cols-2 gap-4 animate-rise delay-1">
         <ImportJob onScraped={onScraped} />
+        <ScrapeSearch
+          onScraped={(newJobs) => {
+            const normalized = (newJobs as Array<Record<string, unknown>>).map(
+              (j) => ({
+                ...(j as object),
+                tags: Array.isArray((j as { tags?: unknown }).tags)
+                  ? ((j as { tags: string[] }).tags)
+                  : safeJsonArray((j as { tags?: string }).tags ?? null),
+              })
+            ) as Job[];
+            setJobs((js) => [...normalized, ...js]);
+          }}
+        />
       </div>
 
       <div className="animate-rise delay-2">
