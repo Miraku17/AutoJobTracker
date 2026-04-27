@@ -1,0 +1,113 @@
+// Prisma schema for OLJ Automate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  jobs         Job[]
+  templates    Template[]
+  reminders    Reminder[]
+  searchFilters SearchFilter[]
+  events       Event[]
+}
+
+model Job {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title         String
+  company       String
+  url           String?
+  description   String?
+  notes         String?
+  salary        String?
+  location      String?
+  source        String?    // e.g. "OnlineJobs.ph"
+  status        String     @default("saved") // saved | applied | interview | offer | rejected | ghosted
+  tags          String     @default("[]")    // JSON array of strings
+  appliedAt     DateTime?
+  followUpAt    DateTime?
+  urlHash       String?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  reminders     Reminder[]
+  events        Event[]
+
+  @@index([userId, status])
+  @@index([userId, urlHash])
+}
+
+model Template {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  subject   String?
+  body      String   // contains {{variables}}
+  isDefault Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reminder {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId      String?
+  job        Job?     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  title      String
+  remindAt   DateTime
+  done       Boolean  @default(false)
+  notify     Boolean  @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId, done, remindAt])
+}
+
+model SearchFilter {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  query     String   // JSON {q, status[], tags[]}
+
+  createdAt DateTime @default(now())
+}
+
+// audit / activity log for analytics
+model Event {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  type      String   // job_created | status_changed | applied | interview | offer | rejected
+  payload   String?  // optional JSON details
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, type, createdAt])
+}

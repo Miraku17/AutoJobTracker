@@ -1,0 +1,291 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --paper: #f1ebdc;
+  --paper-card: #fbf6e8;
+  --paper-deep: #e8dfc8;
+  --ink: #16140e;
+  --ink-muted: #5b554a;
+  --ink-subtle: #8a8270;
+  --rule: rgba(22, 20, 14, 0.18);
+  --rule-subtle: rgba(22, 20, 14, 0.08);
+  --accent: #c4341a;
+}
+
+html,
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-feature-settings: "kern", "ss01", "cv11";
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Paper grain — fixed, behind everything */
+.paper-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.09  0 0 0 0 0.07  0 0 0 0 0.05  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 240px 240px;
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+}
+.paper-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(196, 52, 26, 0.05), transparent 60%),
+    radial-gradient(110% 70% at 100% 100%, rgba(31, 77, 58, 0.04), transparent 60%);
+  pointer-events: none;
+}
+
+::selection {
+  background: rgba(196, 52, 26, 0.25);
+  color: #16140e;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(22, 20, 14, 0.18);
+  border-radius: 0;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(22, 20, 14, 0.36);
+  background-clip: padding-box;
+}
+
+@layer components {
+  /* Buttons — letterpress feel */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium tracking-tightish transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none rounded-sm;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-paper px-4 py-2 hover:bg-accent;
+    box-shadow: 0 1px 0 rgba(22, 20, 14, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 1px 0 rgba(122, 31, 12, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .btn-secondary {
+    @apply btn bg-paper-card text-ink border border-rule px-4 py-2 hover:border-ink hover:bg-paper-deep;
+  }
+  .btn-ghost {
+    @apply btn text-ink-muted hover:text-ink hover:bg-rule-subtle;
+  }
+  .btn-danger {
+    @apply btn border border-status-rejected/40 text-status-rejected bg-transparent hover:bg-status-rejected/10 px-4 py-2;
+  }
+
+  /* Inputs */
+  .input {
+    @apply w-full bg-paper-card border border-rule px-3 py-2.5 text-sm text-ink placeholder:text-ink-faint transition-colors rounded-sm;
+    font-feature-settings: "ss01", "tnum";
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 1px var(--ink) inset;
+  }
+  select.input {
+    @apply appearance-none pr-8;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%2316140e' stroke-width='1.4'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+  }
+
+  .label {
+    @apply block font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted mb-1.5;
+  }
+
+  /* Cards — paper sheets */
+  .card {
+    @apply bg-paper-card border border-rule rounded-sm relative;
+  }
+  .card-hover {
+    @apply transition-colors;
+  }
+  .card-hover:hover {
+    border-color: rgba(22, 20, 14, 0.4);
+  }
+
+  /* Pills — small caps badge */
+  .pill {
+    @apply inline-flex items-center font-mono uppercase rounded-sm px-1.5 py-0.5 text-[10px] tracking-[0.16em] border;
+  }
+
+  .kbd {
+    @apply font-mono text-[10px] px-1.5 py-0.5 rounded-sm border border-rule bg-paper-deep text-ink-muted;
+  }
+
+  /* Editorial display heading */
+  .display {
+    font-family: var(--font-display), Georgia, serif;
+    font-variation-settings: "opsz" 144, "SOFT" 50, "WONK" 0;
+    letter-spacing: -0.025em;
+    line-height: 0.95;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .display-italic {
+    font-family: var(--font-display), Georgia, serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 96, "SOFT" 100, "WONK" 1;
+    letter-spacing: -0.01em;
+  }
+
+  /* Eyebrow label — small caps mono */
+  .eyebrow {
+    @apply font-mono text-[10px] uppercase tracking-eyebrow text-ink-muted;
+  }
+  .eyebrow-accent {
+    @apply font-mono text-[10px] uppercase tracking-eyebrow;
+    color: var(--accent);
+  }
+
+  /* Section marker, e.g. "§ 03 · Activity" */
+  .section-marker {
+    @apply inline-flex items-baseline gap-1.5 font-mono text-[10px] uppercase tracking-eyebrow;
+    color: var(--accent);
+  }
+
+  /* Hairline rule */
+  .hairline {
+    border-top: 1px solid var(--rule);
+  }
+  .hairline-strong {
+    border-top: 1.5px solid var(--ink);
+  }
+  .hairline-double {
+    border-top: 1px solid var(--ink);
+    box-shadow: 0 3px 0 -2px var(--ink);
+  }
+
+  /* Drop cap */
+  .dropcap::first-letter {
+    font-family: var(--font-display), Georgia, serif;
+    font-variation-settings: "opsz" 144, "SOFT" 100, "WONK" 1;
+    font-weight: 600;
+    font-style: italic;
+    color: var(--accent);
+    float: left;
+    font-size: 3.6em;
+    line-height: 0.85;
+    padding-right: 0.08em;
+    padding-top: 0.06em;
+  }
+
+  /* Rotated red rubber stamp */
+  .stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1.5px solid var(--accent);
+    color: var(--accent);
+    background: rgba(196, 52, 26, 0.06);
+    padding: 0.2rem 0.6rem;
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    transform: rotate(-1.5deg);
+    border-radius: 2px;
+  }
+
+  /* Rules */
+  .rule-x {
+    background-image: linear-gradient(to right, var(--rule), var(--rule));
+    background-size: 100% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+  }
+
+  /* Number with tabular figures */
+  .num {
+    font-feature-settings: "tnum", "lnum";
+  }
+
+  /* Paper sheet w/ subtle shadow */
+  .sheet {
+    @apply bg-paper-card border border-rule rounded-sm;
+    box-shadow: 0 1px 0 rgba(22, 20, 14, 0.05),
+      0 18px 38px -24px rgba(22, 20, 14, 0.32);
+  }
+
+  /* Animated underline link */
+  .ink-link {
+    @apply relative inline-block;
+    background-image: linear-gradient(to right, var(--ink), var(--ink));
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    transition: background-size 250ms ease;
+  }
+  .ink-link:hover {
+    background-size: 100% 1px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .tracking-eyebrow {
+    letter-spacing: 0.22em;
+  }
+  .tracking-tightish {
+    letter-spacing: -0.01em;
+  }
+  .font-display {
+    font-family: var(--font-display), Georgia, serif;
+  }
+}
+
+/* Page entrance */
+@keyframes paper-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: paper-rise 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.delay-1 { animation-delay: 60ms; }
+.delay-2 { animation-delay: 120ms; }
+.delay-3 { animation-delay: 180ms; }
+.delay-4 { animation-delay: 240ms; }
+.delay-5 { animation-delay: 300ms; }
